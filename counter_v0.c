@@ -41,6 +41,12 @@ void sigHandler_A( int sig )
     fflush( stdout ) ;
     printf("\n\n### I (%d) received Signal #%3d.\n\n"
            , getpid() , sig );  
+    pid_t child_process = fork();
+    if (child_process == 0) {
+        execlp("./divider", "divider", NULL);
+        perror("execlp failed");
+        exit(1);
+    }
 }
 
 //------------------------------------------------------------
@@ -57,6 +63,7 @@ void sigHandler_CONT( int sig )
     fflush( stdout ) ;
     printf("\n\n### I (%d) have been asked to RESUME by Signal #%3d.\n\n"
            , getpid() , sig );  
+    FOREVER = false;
 }
 
 //------------------------------------------------------------
@@ -70,6 +77,10 @@ int main()
     printf("\nHELLO! I AM THE COUNT PROCESS WITH ID= %d\n" , mypid );
       
     // Set up Signal Catching here
+    sigactionWrapper(SIGTSTP, sigHandler_A);
+    sigactionWrapper(SIGCONT, sigHandler_CONT);
+
+
     
     unsigned i=0;
     while(  FOREVER )

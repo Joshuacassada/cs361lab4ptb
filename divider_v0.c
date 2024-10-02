@@ -23,6 +23,7 @@ int main()
     printf("\n\nHELLO! I am the newly-born CHILD ID= %d\n" , mypid );
 
     // Awaken my Parent
-
+    pid_t parent = getppid();
+    kill(parent, SIGCONT);
     return 0;
 }
