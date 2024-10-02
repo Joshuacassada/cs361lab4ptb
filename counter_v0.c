@@ -1,111 +1,93 @@
 #include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <signal.h>
 #include <stdbool.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
 #include "shmSegment.h"
 
 bool FOREVER = true;
 
-//------------------------------------------------------------
-/* Wrapper for sigaction */
+// Wrapper for sigaction
 typedef void Sigfunc(int);
 
-Sigfunc *sigactionWrapper(int signo, Sigfunc *func) {
+Sigfunc * sigactionWrapper(int signo, Sigfunc *func)
+{
     struct sigaction act, oact;
     act.sa_handler = func;
     sigemptyset(&act.sa_mask);
     act.sa_flags = 0;
-
     if (sigaction(signo, &act, &oact) < 0)
         return (SIG_ERR);
-
     return (oact.sa_handler);
 }
 
-// Shared memory pointer
-shmData *shmPtr;
-
-//------------------------------------------------------------
-// SIGTSTP handler now forks and execs the divider
-void sigHandler_A(int sig) {
-    fflush(stdout);
-    printf("\n\n### I (%d) received Signal #%3d and will fork a new process.\n\n", getpid(), sig);
-
-    pid_t child_pid = fork();
-
-    if (child_pid == 0) {
-        // Child process
+void sigHandler_A(int sig)
+{
+    printf("\n\n### I (%d) received Signal #%3d.\n\n", getpid(), sig);
+    pid_t child_process = fork();
+    if (child_process == 0) {
         execlp("./divider", "divider", NULL);
-        perror("execlp failed"); // If execlp fails
+        perror("execlp failed");
         exit(1);
     }
+    // Send SIGSTOP to itself
+    kill(getpid(), SIGSTOP);
 }
 
-//------------------------------------------------------------
-// SIGCONT handler calculates and prints the ratio
-void sigHandler_CONT(int sig) {
-    fflush(stdout);
+void sigHandler_CONT(int sig)
+{
     printf("\n\n### I (%d) have been asked to RESUME by Signal #%3d.\n\n", getpid(), sig);
-
-    if (shmPtr != NULL) {
-        if (shmPtr->num2 != 0) {
-            shmPtr->ratio = (double)shmPtr->num1 / shmPtr->num2;  // Calculate the ratio
-            printf("Ratio from shared memory: %f\n", shmPtr->ratio);
-        } else {
-            printf("Error: Division by zero.\n");
-        }
-    }
-    
     FOREVER = false;
 }
 
-//------------------------------------------------------------
-
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
     if (argc != 3) {
         fprintf(stderr, "Usage: %s <num1> <num2>\n", argv[0]);
-        return EXIT_FAILURE;
+        exit(1);
     }
 
-    // Create shared memory
-    key_t key = ftok("shmSegment.h", 'R'); // Use the provided header file
-    int shmid = shmget(key, SHMEM_SIZE, IPC_CREAT | 0666);
-    
-    if (shmid < 0) {
-        perror("shmget failed");
-        return EXIT_FAILURE;
-    }
+    pid_t mypid = getpid();
+    printf("\nHELLO! I AM THE COUNT PROCESS WITH ID= %d\n", mypid);
 
-    // Attach to the shared memory
-    shmPtr = (shmData *)shmat(shmid, NULL, 0);
-    if (shmPtr == (void *)-1) {
-        perror("shmat failed");
-        return EXIT_FAILURE;
-    }
-
-    // Set values from command-line arguments
-    shmPtr->num1 = atoi(argv[1]);
-    shmPtr->num2 = atoi(argv[2]);
-    shmPtr->ratio = 0.0;  // Initialize ratio
-
-    // Set up signal catching
+    // Set up Signal Catching
     sigactionWrapper(SIGTSTP, sigHandler_A);
     sigactionWrapper(SIGCONT, sigHandler_CONT);
 
+    // Create shared memory
+    key_t key = ftok("shmSegment.h", 'R');
+    int shmid = shmget(key, SHMEM_SIZE, IPC_CREAT | 0666);
+    if (shmid == -1) {
+        perror("shmget failed");
+        exit(1);
+    }
+
+    // Attach to shared memory
+    shmData *shm_ptr = (shmData *)shmat(shmid, NULL, 0);
+    if (shm_ptr == (void *)-1) {
+        perror("shmat failed");
+        exit(1);
+    }
+
+    // Set num1 and num2 in shared memory
+    shm_ptr->num1 = atoi(argv[1]);
+    shm_ptr->num2 = atoi(argv[2]);
+
     unsigned i = 0;
-    while (FOREVER)
+    while (FOREVER) {
         printf("%10X\r", i++);
+        fflush(stdout);
+    }
 
     printf("\nCOUNTER: Stopped Counting. The FOREVER flag must have become FALSE\n\n");
+    printf("COUNTER: Ratio from shared memory: %f\n", shm_ptr->ratio);
     printf("\nCOUNTER: Goodbye\n\n");
 
-    // Detach from shared memory and remove it
-    shmdt(shmPtr);
-    shmctl(shmid, IPC_RMID, NULL);
+    // Detach from shared memory
+    shmdt(shm_ptr);
 
     return 0;
 }
