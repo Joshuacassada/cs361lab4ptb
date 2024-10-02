@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------------
 IPC using Shared Memory & Signals Divider Version 00
 Written By: 
-     1- Dr. Mohamed Aboutabl
+     1- Dr. Mohamed Aboutabls
 -------------------------------------------------------------------------------*/
 
 #include <sys/types.h>
