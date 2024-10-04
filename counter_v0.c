@@ -26,7 +26,7 @@ Sigfunc * sigactionWrapper(int signo, Sigfunc *func)
 
 void sigHandler_A(int sig)
 {
-    printf("\n\n### I (%d) received Signal #%3d.\n\n", getpid(), sig);
+    printf("\n\n### I (%d) have been nicely asked to PAUSE. by #%3d.\n\n", getpid(), sig);
     pid_t child_process = fork();
     if (child_process == 0) {
         execlp("./divider", "divider", NULL);
@@ -51,7 +51,7 @@ int main(int argc, char *argv[])
     }
 
     pid_t mypid = getpid();
-    printf("\nHELLO! I AM THE COUNT PROCESS WITH ID= %d\n", mypid);
+    printf("\nHELLO! I AM THE COUNTER PROCESS WITH ID= %d\n", mypid);
 
     // Set up Signal Catching
     sigactionWrapper(SIGTSTP, sigHandler_A);
@@ -78,12 +78,12 @@ int main(int argc, char *argv[])
 
     unsigned i = 0;
     while (FOREVER) {
-        printf("%10X\r", i++);
+        printf("%10X\r", i++);  // Print at least 7 digits in hexadecimal
         fflush(stdout);
     }
 
     printf("\nCOUNTER: Stopped Counting. The FOREVER flag must have become FALSE\n\n");
-    printf("COUNTER: Ratio from shared memory: %f\n", shm_ptr->ratio);
+    printf("COUNTER: Found this ratio in the shared memory: %f\n", shm_ptr->ratio);
     printf("\nCOUNTER: Goodbye\n\n");
 
     // Detach from shared memory

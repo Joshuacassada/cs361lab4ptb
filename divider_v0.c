@@ -10,7 +10,7 @@
 int main()
 {
     pid_t mypid = getpid();
-    printf("\n\nHELLO! I am the newly-born CHILD ID= %d\n", mypid);
+    printf("\n\nHELLO! I am the newly-born DIVIDER with PID= %d\n", mypid);
 
     // Find shared memory region
     key_t key = ftok("shmSegment.h", 'R');
@@ -34,7 +34,8 @@ int main()
         shm_ptr->ratio = 0;  // or handle division by zero as appropriate
     }
 
-    printf("DIVIDER: Computed ratio %f = %d / %d\n", shm_ptr->ratio, shm_ptr->num1, shm_ptr->num2);
+    printf("\nDIVIDER: Dividing    %d by   %d\n", shm_ptr->num1, shm_ptr->num2);
+    printf("\nDIVIDER: will Signal my parent to CONTINUE");
 
     // Detach from shared memory
     shmdt(shm_ptr);
